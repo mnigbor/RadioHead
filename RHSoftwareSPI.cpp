@@ -9,7 +9,25 @@ RHSoftwareSPI::RHSoftwareSPI(Frequency frequency, BitOrder bitOrder, DataMode da
     :
     RHGenericSPI(frequency, bitOrder, dataMode)
 {
-    setPins(12, 11, 13);
+	// HACK: This ctor calls setPins, which accesses this variable before it is initialized
+	// The result was random data being used in a call to digitalWrite.
+	// Code borrowed from begin();
+    if (dataMode == DataMode0 || dataMode == DataMode1)
+    {
+	_clockPolarity = LOW;
+    }
+    else
+    {
+	_clockPolarity = HIGH;
+    }
+
+	// HACK: Adding platform define for ESP32. ESP32's use GPIO 11 for built-in flash memory. 
+	// Setting GPIO 11 to OUTPUT causes ESP32-VROOM-32 and likely others to crash
+#if (RH_PLATFORM == RH_PLATFORM_ESP32)	
+    setPins(12, 13, 14);
+#else
+	setPins(12, 11, 13);
+#endif
 }
 
 // Caution: on Arduino Uno and many other CPUs, digitalWrite is quite slow, taking about 4us
@@ -147,11 +165,12 @@ void RHSoftwareSPI::setPins(uint8_t miso, uint8_t mosi, uint8_t sck)
 {
     _miso = miso;
     _mosi = mosi;
-    _sck = sck;
+	_sck = sck;
 
     pinMode(_miso, INPUT);
     pinMode(_mosi, OUTPUT);
     pinMode(_sck, OUTPUT);
+
     digitalWrite(_sck, _clockPolarity);
 }
 
